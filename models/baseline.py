@@ -10,3 +10,8 @@ import pandas as pd
 
 
 df = dl.load_airr_dataset("simulated_200_balanced_dataset")
+kmer_freq = kf.encode_repertories(df, k=3, sequence_column="cdr3_aa", sample_column="label", label_column="disease")
+
+print (f"Encoded {len(kmer_freq)} samples with k-mer frequencies.")
+
+print(kmer_freq)

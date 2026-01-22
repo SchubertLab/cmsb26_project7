@@ -11,15 +11,13 @@ import numpy as np
 
 
 df = dl.load_airr_dataset("simulated_2k_balanced_noisy_25_dataset")
-kmer_freq = kf.encode_repertorie_normalized(df, k=1, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
+df = kf.encode_repertorie_normalized(df, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
 
-print (f"Encoded {len(kmer_freq)} samples with k-mer frequencies.")
+print (f"Encoded {len(df)} samples with k-mer frequencies.")
 
-# print(kmer_freq)
+train, test = ds.split_data(df)
 
-train, test = ds.split_data(kmer_freq)
-
-# print(train)
+print(train)
 print(test)
 
 

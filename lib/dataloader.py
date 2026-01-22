@@ -16,8 +16,9 @@ def load_airr_dataset(dataset_name, save_df=False):
     metadata = load_metadata(dataset_path)
     df = load_repertoires(dataset_path, metadata)
 
-    if save_df:
-        df.to_csv(f"{dataset_name}_airr_dataset.csv", index=False)
+    # Todo: save dataframe in path if needed
+    # if save_df:
+    #     df.to_csv(f"{dataset_name}_airr_dataset.csv", index=False)
 
     return df
 
@@ -33,8 +34,8 @@ def load_repertoires(dataset_path, metadata):
     for _, row in metadata.iterrows():
         rep_id = row["filename"].replace(".tsv", "")
 
-        tsv = dataset_path / f"{rep_id}.tsv"
-        yml = dataset_path / f"{rep_id}.yaml"
+        tsv = dataset_path / "repertoires" / f"{rep_id}.tsv"
+        yml = dataset_path / "repertoires" / f"{rep_id}.yaml"
 
         df = pd.read_csv(tsv, sep="\t")
         label = row["identifier"]
@@ -49,5 +50,10 @@ def load_repertoires(dataset_path, metadata):
     return df
 
 
+# main function for testing
+if __name__ == "__main__":
+    dataset_name = "simulated_200_balanced_dataset"
+    df = load_airr_dataset(dataset_name)
+    print(df)
 
 

@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 
-
 # take list of sequences and return k-mer frequency dictionary
 def kmer_frequency(sequences, k):
 

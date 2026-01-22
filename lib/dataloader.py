@@ -39,15 +39,15 @@ def load_repertoires(dataset_path, metadata):
         yml = dataset_path / "repertoires" / f"{rep_id}.yaml"
 
         df = pd.read_csv(tsv, sep="\t")
-        label = row["identifier"]
+        sample = row["identifier"]
 
-        df["label"] = label
+        df["sample"] = sample
         df["repertoire_id"] = rep_id
 
         repertoires.append(df)
 
     df = pd.concat(repertoires, ignore_index=True)
-    df = df.merge(metadata, left_on='label', right_on='identifier', how='left')
+    df = df.merge(metadata, left_on='sample', right_on='identifier', how='left')
     return df
 
 

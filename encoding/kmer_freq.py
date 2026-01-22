@@ -7,7 +7,7 @@ def encode_repertorie_raw(
         df, 
         k=3, 
         sequence_column="cdr3_aa", 
-        sample_column="label", 
+        sample_column="sample", 
         label_column="disease"
     ):  
     
@@ -43,7 +43,7 @@ def encode_repertorie_normalized(
         df, 
         k=3, 
         sequence_column="cdr3_aa",
-        sample_column="label", 
+        sample_column="sample", 
         label_column="disease"
     ):
     # Step 1: find all unique kmers

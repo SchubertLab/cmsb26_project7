@@ -5,7 +5,7 @@ import yaml
 
 def load_airr_dataset(dataset_name, save_df=False):
 
-    with open('airr_datasets.yaml', 'r') as f:
+    with open('/vol/data/immuneML/cmsb26_project7/lib/airr_datasets.yaml', 'r') as f:
         yaml_file = yaml.load(f, Loader=yaml.SafeLoader)
     
     if dataset_name not in yaml_file:

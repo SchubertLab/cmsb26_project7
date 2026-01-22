@@ -1,0 +1,29 @@
+simulated_200_balanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_balanced/my_sim_inst/exported_dataset/airr
+
+simulated_200_unbalanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_unbalanced/my_sim_inst/exported_dataset/airr
+
+simulated_500_balanced_dataset: 
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_500_balanced/my_sim_inst/exported_dataset/airr
+
+simulated_500_unbalanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_500_unbalanced/my_sim_inst/exported_dataset/airr
+
+simulated_1k_balanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_1000_balanced/my_sim_inst/exported_dataset/airr
+
+simulated_1k_unbalanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_1000_unbalanced/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced/my_sim_inst/exported_dataset/airr
+
+simulated_2k_unbalanced_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_unbalanced/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_noisy_05_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_noisy_05/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_noisy_25_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_noisy_25/my_sim_inst/exported_dataset/airr

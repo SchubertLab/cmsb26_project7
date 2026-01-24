@@ -24,8 +24,11 @@ def load_airr_dataset(dataset_name, save_df=False):
 
 
 
-def load_metadata(dataset_path):
-    metadata_path = dataset_path / 'simulated_dataset.csv'
+def load_metadata(dataset_path, file_name="simulated_dataset.csv"):
+    if type(dataset_path) is str:
+        dataset_path = Path(dataset_path)
+    
+    metadata_path = dataset_path / file_name
     metadata = pd.read_csv(metadata_path)
     return metadata
 

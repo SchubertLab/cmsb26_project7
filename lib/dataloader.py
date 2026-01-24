@@ -22,6 +22,17 @@ def load_airr_dataset(dataset_name, save_df=False):
 
     return df
 
+def merge_dataset(df, sample_col="sample", sequence_col="cdr3_aa", label_col="disease", save_df=False):
+    df_merged = (
+        df
+        .groupby(sample_col, as_index=False)
+        .agg({
+            sequence_col: list,
+            label_col: "first"   # or any consistent rule
+        })
+    )
+    return df_merged
+    
 
 
 def load_metadata(dataset_path, file_name="simulated_dataset.csv"):

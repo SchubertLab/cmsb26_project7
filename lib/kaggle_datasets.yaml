@@ -41,3 +41,11 @@ dataset_8_2:
 dataset_8_3:
   train_path: /vol/data/keggel/train_datasets/train_datasets/train_dataset_8/
   test_path: /vol/data/keggel/test_datasets/test_datasets/test_dataset_8_3/
+
+dataset_7:
+  train_path: /vol/data/keggel/train_datasets/train_datasets/train_dataset_7/
+  test_path: None
+
+dataset_8:
+  train_path: /vol/data/keggel/train_datasets/train_datasets/train_dataset_8/
+  test_path: None

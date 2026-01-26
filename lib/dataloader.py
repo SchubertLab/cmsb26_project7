@@ -11,21 +11,18 @@ def load_airr_dataset(dataset_name):
     if dataset_name not in yaml_file:
         raise ValueError(f"Dataset {dataset_name} not found in airr_datasets.yaml")
     
-    if (Path(yaml_file[dataset_name]['path']) / "dataset.pkl").exists():
-        print(f"Loading cached dataset from {yaml_file[dataset_name]['path']}/dataset.pkl...")
-        df = pd.read_pickle(Path(yaml_file[dataset_name]['path']) / "dataset.pkl")
+    if (Path(yaml_file[dataset_name]['path']) / "_dataset.pkl").exists():
+        print(f"Loading cached dataset from {yaml_file[dataset_name]['path']}/_dataset.pkl...")
+        df = pd.read_pickle(Path(yaml_file[dataset_name]['path']) / "_dataset.pkl")
         return df
     
     dataset_path = Path(yaml_file[dataset_name]['path'])
 
     metadata = load_metadata(dataset_path)
     df = load_repertoires_airr(dataset_path, metadata)
-
-    # Todo: save dataframe in path if needed
-    # if save_df:
-    #     df.to_csv(f"{dataset_name}_airr_dataset.csv", index=False)
     
-    df.to_pickle(dataset_path / "dataset.pkl")
+    print(f"Saving merged dataset to {dataset_path}/_dataset.pkl...")
+    df.to_pickle(dataset_path / "_dataset.pkl")
 
     return df
 
@@ -45,16 +42,15 @@ def load_kaggle_dataset(dataset_name):
     # print(f"Test path: {test_path}")
     
     # check if train_path + merged_dataset.pkl exists
-    if (Path(train_path) / "dataset.pkl").exists():
-        print(f"Loading cached dataset from {train_path}/dataset.pkl...")
-        df = pd.read_pickle(Path(train_path) / "dataset.pkl")
+    if (Path(train_path) / "_dataset.pkl").exists():
+        print(f"Loading cached dataset from {train_path}/_dataset.pkl...")
+        df = pd.read_pickle(Path(train_path) / "_dataset.pkl")
         return df
     
     # load train dataset
     print(f"Loading train dataset from {train_path}...")
     metadata_train = load_metadata(train_path, "metadata.csv")
     df_train = load_repertoires_kaggle(train_path, metadata_train)
-    df_train["set"] = "train"
     
     # load test dataset
     # print(f"Loading test dataset from {test_path}...")
@@ -67,9 +63,15 @@ def load_kaggle_dataset(dataset_name):
     
     df = df_train  # only train for now (test does not contain labels)
     
+    # remove columns not needed
+    cols_to_remove = ['A', 'B', 'C', 
+                      'DPA1', 'DPB1', 'DQA1', 'DQB1', 'DRB3', 'DRB4', 'DRB5', 'DRB1', 
+                      'repertoire_id_x', 'repertoire_id_y', 'v_call', 'j_call', 'd_call']
+    df = df.drop(columns=cols_to_remove, errors='ignore')
+    
     # save merged dataset
-    print(f"Saving merged dataset to {train_path}/dataset.pkl...")
-    df.to_pickle(Path(train_path) / "dataset.pkl")
+    print(f"Saving merged dataset to {train_path}/_dataset.pkl...")
+    df.to_pickle(Path(train_path) / "_dataset.pkl")
     
     return df
     

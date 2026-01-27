@@ -1,81 +1,102 @@
-from transformers import BertModel
-from transformers import BertTokenizer
-
 import torch
-import torch.nn.functional as F
+from transformers import BertModel, BertTokenizer
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = BertModel.from_pretrained("wukevin/tcr-bert")
+model = BertModel.from_pretrained("wukevin/tcr-bert").to(device)
 tokenizer = BertTokenizer.from_pretrained("wukevin/tcr-bert")
 
-model.to(device)
+model.eval()
 
-print(f"TCR-BERT model loaded on device: {device}")
+print(f"TCR-BERT loaded on {device}")
 
-def tokeninze_tcrs(sequences, max_length=64):
-    # space separate the sequences
-    spaced_sequences = [" ".join(list(seq)) for seq in sequences]
-    
-    # add placeholder sequence with same length as max_length to enforce padding/truncation
-    placeholder = "A " * (max_length - 1) + "A"
-    spaced_sequences.append(placeholder.strip())
-    
-    inputs = tokenizer(
-        spaced_sequences,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=max_length,
-    )
-    # remove the placeholder from inputs
-    for key in inputs:
-        inputs[key] = inputs[key][:-1]
-        
-    return inputs
+# Take dataframe as input and add one hot and mask columns
+def tokenize(df, seq_col="junction_aa", max_length=32):
+    input_ids = []
+    attention_masks = []
 
-def generate_tcr_embeddings(sequences, max_length=64, device=device):
-    inputs = tokeninze_tcrs(sequences, max_length=max_length).to(device)
-    with torch.no_grad():
-        outputs = model(**inputs, output_hidden_states=True)
-    # get the last hidden states
-    embeddings = outputs.hidden_states[-1]
-    return embeddings
+    for seq in tqdm(df[seq_col], desc="Tokenizing sequences"):
+        encoded_dict = tokenizer.encode_plus(
+            seq,
+            add_special_tokens=True,
+            max_length=max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors="pt",
+        )
 
-def aggregate_tcr_embeddings(embedding, tcr_agg_method="mean", repertoire_agg_method="mean"):
+        input_ids.append(encoded_dict["input_ids"])
+        attention_masks.append(encoded_dict["attention_mask"])
 
-    # embedding shape: (batch_size, seq_length, embedding_dim)
-    if tcr_agg_method == "mean":
-        tcr_embeddings = embedding.mean(dim=1)  # mean over seq_length
-    elif tcr_agg_method == "max":
-        tcr_embeddings, _ = embedding.max(dim=1)  # max over seq_length
-    else:
-        raise ValueError(f"Unknown tcr_agg_method: {tcr_agg_method}")
+    df["input_ids"] = input_ids
+    df["attention_mask"] = attention_masks
 
-    # Now aggregate over the repertoire (batch dimension)
-    if repertoire_agg_method == "mean":
-        repertoire_embedding = tcr_embeddings.mean(dim=0)  # mean over batch_size
-    elif repertoire_agg_method == "max":
-        repertoire_embedding, _ = tcr_embeddings.max(dim=0)  # max over batch_size
-    else:
-        raise ValueError(f"Unknown repertoire_agg_method: {repertoire_agg_method}")
-
-    return repertoire_embedding
-
-def encode_repertorie(
-    df,
-    sequence_col="cdr3_aa",
-    max_length=64,
-    tcr_agg_method="mean",
-    repertoire_agg_method="mean",
-    device=device,
-):
-    df["embeddings"] = df.apply(
-            lambda row: aggregate_tcr_embeddings(
-                generate_tcr_embeddings(row[sequence_col], max_length=max_length, device=device),
-                tcr_agg_method=tcr_agg_method,
-                repertoire_agg_method=repertoire_agg_method,
-        ),
-        axis=1
-    )
     return df
+
+from tqdm import tqdm
+import torch
+
+def tokenize_batchwise(df, seq_col="junction_aa", max_length=32, batch_size=1024):
+    input_ids = []
+    attention_masks = []
+
+    sequences = df[seq_col].tolist()
+    
+    # amino acids must be space delimited for TCR-BERT tokenizer
+    sequences = [" ".join(list(seq)) for seq in sequences]
+
+    print(sequences[:20])
+    
+    print(sequences[-20:])
+
+    for i in tqdm(range(0, len(sequences), batch_size), desc="Tokenizing sequences"):
+        batch_seqs = sequences[i:i + batch_size]
+
+        encoded = tokenizer(
+            batch_seqs,
+            add_special_tokens=True,
+            max_length=max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors="pt",
+        )
+
+        input_ids.append(encoded["input_ids"])
+        attention_masks.append(encoded["attention_mask"])
+
+    # concatenate batches
+    input_ids = torch.cat(input_ids, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
+
+    return (input_ids, attention_masks)
+
+
+def encode_sequences(df, seq_col="junction_aa", max_length=32, batch_size=1024):
+    input_ids, attention_masks = tokenize_batchwise(df, seq_col=seq_col, max_length=max_length, batch_size=batch_size)
+    embeddings = []
+    
+    
+    for i in tqdm(range(0, input_ids.size(0), batch_size), desc="Encoding sequences"):
+        batch_input_ids = input_ids[i:i + batch_size].to(device)
+        batch_attention_masks = attention_masks[i:i + batch_size].to(device)
+
+        with torch.no_grad():
+            outputs = model(
+                input_ids=batch_input_ids,
+                attention_mask=batch_attention_masks,
+            )
+            # CLS token
+            batch_embeddings = outputs.last_hidden_state[:, 0, :]
+
+        embeddings.append(batch_embeddings.cpu())
+
+    # shape: (N, hidden_dim)
+    embeddings = torch.cat(embeddings, dim=0)
+
+    # df["embeddings"] = list(embeddings)  # one tensor per row
+    return (input_ids, attention_masks, embeddings)
+    
+    

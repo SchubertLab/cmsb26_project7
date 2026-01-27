@@ -86,6 +86,13 @@ def merge_dataset(df, sample_col="sample", sequence_col="cdr3_aa", label_col="di
             label_col: "first"   # or any consistent rule
         })
     )
+    # rename columns to match default names
+    df_merged = df_merged.rename(columns={
+            sample_col: "sample",
+            sequence_col: "sequences", 
+            label_col: "label"
+        })
+    print(df_merged.head())
     return df_merged
     
 

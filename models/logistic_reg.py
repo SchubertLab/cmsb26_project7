@@ -11,24 +11,11 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-
-#delete after fix
-import yaml
-from pathlib import Path
-
-#issue:
-#df = dl.load_airr_dataset("simulated_2k_balanced_noisy_25_dataset")
-
-#delete after fix
-dataset_name = "simulated_2k_balanced_noisy_25_dataset"
-with open('/vol/data/immuneML/cmsb26_project7/lib/airr_datasets.yaml', 'r') as f:
-    yaml_file = yaml.load(f, Loader=yaml.SafeLoader)
-
-dataset_path = Path(yaml_file[dataset_name]['path'])
-metadata = dl.load_metadata(dataset_path)
-df = dl.load_repertoires_airr(dataset_path, metadata)
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
 
 
+df = dl.load_airr_dataset("simulated_2k_balanced_noisy_25_dataset")
 df = kf.encode_repertorie_normalized(df, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
 
 print (f"Encoded {len(df)} samples with k-mer frequencies.")
@@ -38,69 +25,106 @@ train, test = ds.split_data(df)
 print(train)
 print(test)
 
-def pipeline(train_df, test_df, sample_column, label_column):
-    #modifying
-    X_train, y_train, X_test, y_test = prepare_data(train_df, test_df, sample_column, label_column)
+class LogRegPredictor:
+    def __init__(self, sample_column='sample', label_column='disease', random_state=16):
+        #data
+        self.sample_column = sample_column
+        self.label_column = label_column
+        
+        #model
+        self.model = None
+        self.best_params = None
+        self.random_state = random_state
+        self.y_prob = None
+        self.metrics = None #me.calc_metrics()
 
-    #scaling kmer frequencies and training
-    model, scaler = train_model(X_train, y_train)
+        #model params
+        self.penalty = 'l1'
+        self.solver = 'liblinear'
+        self.max_iter = 1000
+        self.C = 1
 
-    #scaling and testing
-    y_prob = test_model(model, scaler, X_test)
+        #tuning params
+        self.opt_metric = 'balanced_accuracy'
+        self.c_values = np.logspace(-4,4,20)
+        self.tuning_parameters = {'model__C' : self.c_values} #if we want to check hyperparams other than C
 
-    #evaluation
-    metrics = evaluate_model(y_test, y_prob)
+    def set_C(self, C_value):
+        self.C = C_value
 
-    return y_prob, metrics
+    def set_c_values(self, c_values):
+        self.c_values = c_values
 
-
-
-#prepare feature & label dataframes
-def prepare_data(train_df, test_df, sample_column, label_column):
-    X_train = train_df.drop(columns=[sample_column, label_column])
-    y_train = train_df[label_column]
-
-    X_test = test_df.drop(columns=[sample_column, label_column])
-    y_test = test_df[label_column]
-
-    return X_train, y_train, X_test, y_test
-
-def train_model(X_train, y_train):
-    print(f"Training LogisticRegression on {X_train.shape[0]} samples and {X_train.shape[1]} kmer features")
-    #scaling
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-
-    model = LogisticRegression(
-        penalty='l1',
-        solver='liblinear',
-        C=0.1,
-        random_state=16,
-        max_iter=1000
-    )
-
-    model.fit(X_train_scaled, y_train)
-    print("Training complete")
-
-    return model, scaler
-
-def test_model(model, scaler, X_test):
-    print(f"Testing LogisticRegression on {X_test.shape[0]} samples")
-    #scaling
-    X_test_scaled = scaler.transform(X_test)
-
-    #predict state and probabilities
-    #y_pred = model.predict(X_test_scaled)
-    y_prob = model.predict_proba(X_test_scaled)[:, 1]
-    print("Testing complete")
-
-    return y_prob
-
-def evaluate_model(y_test, y_prob):
-    disease_int = y_test.astype(int).tolist()
-    pred_scores = me.calc_metrics(disease_int, y_prob)
-    return pred_scores
+    def set_tuning_parameters(self, tuning_params:dict):
+        self.tuning_parameters = tuning_params
 
 
-_, metrics = pipeline(train, test, "sample", "disease")
+    #prepare feature & label dataframes
+    def prepare_data(self, train_df, test_df):
+        self.X_train = train_df.drop(columns=[self.sample_column, self.label_column])
+        self.y_train = train_df[self.label_column]
+
+        self.X_test = test_df.drop(columns=[self.sample_column, self.label_column])
+        self.y_test = test_df[self.label_column]
+
+
+    def make_pipeline(self):
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('model', LogisticRegression(
+                penalty=self.penalty,
+                solver=self.solver,
+                C=self.C,
+                random_state=self.random_state,
+                max_iter=self.max_iter
+            ))
+        ])
+
+    
+    def _tune_model(self):
+        pipe = self.make_pipeline()
+    
+        grid_search = GridSearchCV(
+            estimator=pipe,
+            param_grid=self.tuning_parameters,
+            scoring= self.opt_metric
+        )
+
+        grid_search.fit(self.X_train, self.y_train)
+
+        return grid_search.best_estimator_, grid_search.best_params_
+    
+    def train(self, tune=True):
+        if tune:
+            print(f"Tuning and Training LogisticRegression on {self.X_train.shape[0]} samples and {self.X_train.shape[1]} kmer features")
+            self.model, self.best_params = self._tune_model()
+            print("Tuning and training complete.")
+            print(f"Best model parameters: {self.best_params}")
+        else:
+            print(f"Training LogisticRegression on {self.X_train.shape[0]} samples and {self.X_train.shape[1]} kmer features")
+            self.model = self.make_pipeline()
+            self.model.fit(self.X_train, self.y_train)
+            print("Training complete.")
+
+    def predict(self):
+        print(f"Testing LogisticRegression on {self.X_test.shape[0]} samples")
+        self.y_prob = self.model.predict_proba(self.X_test)[:, 1]
+        print("Testing complete.")
+        return self.y_prob
+
+    def evaluate(self):
+        if self.y_prob is None:
+            raise ValueError("No predicted probabilities found. Run predict() first.")
+        
+        disease_int = self.y_test.astype(int).tolist()
+        self.metrics = me.calc_metrics(disease_int, self.y_prob)
+
+        return self.metrics
+
+
+model = LogRegPredictor('sample','disease')
+model.prepare_data(train, test)
+model.train()
+model.predict()
+metrics = model.evaluate()
 print(metrics)

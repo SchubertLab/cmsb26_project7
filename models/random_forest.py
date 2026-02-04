@@ -12,9 +12,12 @@ import matplotlib.pyplot as plt
 # Modelling
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, average_precision_score, recall_score, precision_score, f1_score
-from sklearn.model_selection import RandomizedSearchCV, train_test_split, GridSearchCV, cross_val_predict
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, train_test_split, cross_val_predict, cross_validate
 from scipy.stats import randint
-from sklearn.calibration import CalibratedClassifierCV
+#from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from imblearn.pipeline import Pipeline
+from imblearn.under_sampling import RandomUnderSampler
 
 from sklearn.tree import export_graphviz
 from IPython.display import Image
@@ -39,7 +42,9 @@ class RandForestPredictor:
         #model
         self.random_state = random_state
         self.model = RandomForestClassifier(random_state=self.random_state, n_jobs=-1)
+        self.hp_params = None
         self.best_params = None
+        self.nested_scores = None
         self.y_pred = None
 
         #tuning params
@@ -49,22 +54,78 @@ class RandForestPredictor:
         os.makedirs(self.output_folder, exist_ok=True)
     
 
-    def hp_tuning(self, params):
-        gs = GridSearchCV(self.model, param_grid=params, cv=5, scoring=self.opt_metric, n_jobs=-1)
-        # Fit the GridSearchCV on your training data
-        gs.fit(self.X_train, self.y_train) 
-        self.model = gs.best_estimator_
+    def make_pipeline(self):
+        return Pipeline([
+            ('sampler', RandomUnderSampler()),    # balance the classes
+            ("scaler", StandardScaler()),
+            ("model", self.model)
+        ])
 
-        # Print the best hyperparameters
-        self.best_params = gs.best_params_
-        print('Best hyperparameters:',  gs.best_params_)
+    def nested_cv(self, params, n_iter=10, n_splits=5, shuffle=True):
+        self.hp_params = params
+        pipe = self.make_pipeline()
+        
+        # Inner CV for hyperparameter tuning
+        inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=shuffle, random_state=self.random_state)
+        search = RandomizedSearchCV(
+            estimator=pipe,
+            param_distributions=self.hp_params,
+            n_iter=n_iter,
+            cv=inner_cv,
+            scoring=self.opt_metric,
+            n_jobs=-1,
+            random_state=self.random_state
+        )
+
+        # Outer CV for unbiased evaluation
+        outer_cv = StratifiedKFold(n_splits=n_splits, shuffle=shuffle, random_state=self.random_state)
+
+        scores = cross_validate(
+            search,
+            self.X_train,
+            self.y_train,
+            cv=outer_cv,
+            scoring=["accuracy", "balanced_accuracy", "precision", "recall", "roc_auc", "average_precision"],
+            return_estimator=True,
+            n_jobs=-1
+        )
+
+        self.nested_scores = scores
+
+        for metric in ['test_accuracy', 'test_balanced_accuracy', 'test_precision', 'test_recall', 'test_roc_auc', 'test_average_precision']:
+            print("Nested CV {}: {:.3f} ± {:.3f}".format(metric.removeprefix("test_"),
+                scores[metric].mean(), scores[metric].std()))
+        
+
+        return scores
+
+
+    def fit_final_model(self, n_iter=10, n_splits=5):
+        """
+        Trains a final model on the full dataset using RandomizedSearchCV.
+        """
+        pipe = self.make_pipeline()
+        search = RandomizedSearchCV(
+            estimator=pipe,
+            param_distributions=self.hp_params,
+            n_iter=n_iter,
+            cv=n_splits,
+            scoring=self.opt_metric,
+            n_jobs=-1,
+            random_state=self.random_state
+        )
+        search.fit(self.X_train, self.y_train)
+        self.model = search.best_estimator_
+        self.best_params = search.best_params_
+        print("Final model trained with hyperparameters:", self.best_params)
+        print()
 
         self.predict()
 
 
     def predict(self):
-        self.model.fit(self.X_train, self.y_train)
         self.y_pred = self.model.predict(self.X_test)
+        return self.y_pred
 
     
     def confusion_matrix(self, filename="confusion_matrix.png"):
@@ -73,15 +134,18 @@ class RandForestPredictor:
         cm = confusion_matrix(self.y_test, self.y_pred)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-
+        
+        plt.title("Confusion Matrix")
         plt.tight_layout()
         plt.savefig(f'{self.output_folder}/{filename}')
         plt.close()
     
 
     def explore_decision_trees(self, n=3, max_depth=2, filename='trees/tree'):
-        for i in range(n):
-            tree = self.model.estimators_[i]
+        rf = self.model.named_steps['model']
+        for i in range(min(n, len(rf.estimators_))):
+            
+            tree = rf.estimators_[i]
             dot_data = export_graphviz(tree,
                                     feature_names=self.X_train.columns,  
                                     filled=True,  
@@ -93,9 +157,9 @@ class RandForestPredictor:
     
 
     def feature_importance(self, n=10, filename="feature_importances.png"):
-        importances = pd.Series(self.model.feature_importances_, index=self.X_train.columns)
-        ax = importances.sort_values(ascending=False).head(n).plot.bar(figsize=(10, 5))
-        ax.set_title("Feature Importances")
+        importances = pd.Series(self.model.named_steps['model'].feature_importances_, index=self.X_train.columns)
+        ax = importances.sort_values(ascending=False).head(n).plot.bar(figsize=(10, 6))
+        ax.set_title(f"Top {n} Feature Importances")
 
         plt.tight_layout()
         plt.savefig(f'{self.output_folder}/{filename}')
@@ -108,45 +172,62 @@ if __name__ == '__main__':
     # control: AAA, disease: YYG
     datasets_3AA = ['simulated_200_balanced_dataset', 'simulated_200_unbalanced_dataset', 'simulated_500_balanced_dataset', 'simulated_500_unbalanced_dataset', 'simulated_1k_balanced_dataset', 'simulated_1k_unbalanced_dataset', 'simulated_2k_balanced_dataset', 'simulated_2k_unbalanced_dataset', 'simulated_2k_balanced_noisy_05_dataset', 'simulated_2k_balanced_noisy_25_dataset']
     # control: HNDYSEIRCVLQN, disease: GPKALMVFWQRST
-    datasets_13AA = [str.replace(data,'dataset', '13AA_dataset') for data in datasets_3AA][:-1]
+    datasets_13AA = [str.replace(data,'dataset', '13AA_dataset') for data in datasets_3AA]
     
     # params for HP tuning
-    param_dict = {
-    'n_estimators': [100, 200, 500], # number of trees
-    #
-    'criterion': ['gini'], # ['gini', 'log_loss'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
-    'min_samples_leaf': [1], #[1, 5, 10], # minimum number of samples required to be at a leaf node
-    # increasing noise variables leads to higher optimal node size; large datasets higher --> decreases runtime
-    'max_features': ['sqrt'], #['sqrt', None],  # number of features to consider when looking for the best split 
-    # high if only few relevant variables, low otherwise; higher for high dimensional data
-    'bootstrap': [True], # True: replacement, False: without replacement
-    # 
-    #'class_weight': ["balanced"], # ["balanced_subsample"] #?
-    'max_samples': [None], #[None, 4/5], # If bootstrap is True, the number of samples to draw from X to train each base estimator.
-    # less better performance
+    params = {
+        'model__max_features': ['sqrt'], # number of features to consider when looking for the best split 
+        # higher: few relevant variables, high dimensional data
+        # lower: many relevant variables, more diverse trees, on avg worse performance, reduces runtime
+        'model__max_samples': [None, 0.8], # If bootstrap is True, the number of samples to draw from X to train each base estimator.
+        # higher:
+        # lower: more diverse trees, single trees worse performance, for most datasets better performance, reduces runtime
+        'model__bootstrap': [True], # True: replacement, False: without replacement
+        'model__min_samples_leaf': [1, 5, 10], # minimum number of samples required to be at a leaf node
+        # higher: more noise variables, reduces runtime, large datasets
+        # lower: trees with larger depth
+        'model__n_estimators': [100, 200, 500, 1000], # number of trees in the forest
+        # higher: better, low sample size & high node size & small mtry, increases runtime
+        # lower: 
+        'model__criterion': ['gini'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
+        'model__class_weight': ["balanced"] #, "balanced_subsample"]
     }
 
     rf_models = {}
-    for data in datasets_3AA[:3]:
+    for data in datasets_13AA:
         print(data)
-        rf_model = RandForestPredictor(data, output_folder=f'output_stats/{data}')
 
-        rf_model.hp_tuning(param_dict)
+        # ------------------ 2. Initialize predictor ------------------
+        rf_predictor = RandForestPredictor(data_name=data, output_folder='output_stats/13AA')
+
+        # ------------------ 3. Run nested CV for evaluation ------------------
         
-        rf_model.confusion_matrix()
-        rf_model.explore_decision_trees()
-        rf_model.feature_importance()
+        nested_scores = rf_predictor.nested_cv(
+            params=params,
+            n_iter=12,
+            n_splits=5,
+            shuffle=True
+        )
 
-        rf_models[data] = rf_model
+        # Nested CV prints mean ± std of average precision and recall
+
+        # ------------------ 4. Train final model on full dataset ------------------
+        rf_predictor.fit_final_model(n_iter=20)
+
+        rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
+        rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
+        rf_predictor.feature_importance(filename=f"feature_importance_{data}.png")
+
+        rf_models[data] = rf_predictor
 
 
 
     # Save to file
-    with open('output_stats/random_forest_variables.pkl', 'wb') as f:
+    with open('output_stats/13AA/random_forest_variables.pkl', 'wb') as f:
         pickle.dump(rf_models, f)
 
-    metric_heatmap(rf_models, filename='output_stats/metrics_heatmap.png')
-    
+    metric_heatmap(rf_models, filename='output_stats/13AA/metrics_heatmap.png')
+
     """
     # Load later
     with open('random_forest_variables.pkl', 'rb') as f:

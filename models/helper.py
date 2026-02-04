@@ -23,11 +23,11 @@ def preprocess_data(data, k=3, seq_col="cdr3_aa", samp_col="sample", lab_col="di
     y = df[lab_col]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
-
     return X_train, X_test, y_train, y_test
 
+
 # calculate metrics for a dict of ml models and save as heatmap (png)
-## ml_dict: {name of dataset: class with parameters (y_test, y_pred), ...}
+## ml_dict: {name of dataset: class with parameters (y, y_pred), ...}
 def metric_heatmap(ml_dict, filename="metrics_heatmap.png"):
 
     metrics_best_models = {}

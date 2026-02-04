@@ -27,3 +27,33 @@ simulated_2k_balanced_noisy_05_dataset:
 
 simulated_2k_balanced_noisy_25_dataset:
   path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_noisy_25/my_sim_inst/exported_dataset/airr
+
+simulated_200_balanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_balanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_200_unbalanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_unbalanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_500_balanced_13AA_dataset: 
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_500_balanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_500_unbalanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_500_unbalanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_1k_balanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_1000_balanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_1k_unbalanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_1000_unbalanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_2k_unbalanced_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_unbalanced_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_noisy_05_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_noisy_05_13AA/my_sim_inst/exported_dataset/airr
+
+simulated_2k_balanced_noisy_25_13AA_dataset:
+  path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_2000_balanced_noisy_25_13AA/my_sim_inst/exported_dataset/airr

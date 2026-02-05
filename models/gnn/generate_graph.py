@@ -29,15 +29,15 @@ def frequency_cutoff(df, min_freq=0.00001):
 
 def naive_sample_node_merge(df_sample, embeddings_sample, k_nodes=500):
 
-    # kmeans = KMeans(n_clusters=k_nodes, random_state=42)
-    # labels = kmeans.fit_predict(embeddings_sample)
-
-    # cluster_embeddings = kmeans.cluster_centers_
-
-    kmeans = MiniBatchKMeans(n_clusters=k_nodes, random_state=42, batch_size=1000)
+    kmeans = KMeans(n_clusters=k_nodes, random_state=42)
     labels = kmeans.fit_predict(embeddings_sample)
 
     cluster_embeddings = kmeans.cluster_centers_
+
+    # kmeans = MiniBatchKMeans(n_clusters=k_nodes, random_state=42, batch_size=1000)
+    # labels = kmeans.fit_predict(embeddings_sample)
+
+    # cluster_embeddings = kmeans.cluster_centers_
 
     df_sample["cluster"] = labels
     df_sample["cluster_embedding"] = df_sample["cluster"].apply(lambda x: cluster_embeddings[x])

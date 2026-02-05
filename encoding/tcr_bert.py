@@ -4,6 +4,11 @@ from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# from transformers.file_utils import TRANSFORMERS_CACHE
+
+# print("Hugging Face cache directory:", TRANSFORMERS_CACHE)
+
+
 model = BertModel.from_pretrained("wukevin/tcr-bert").to(device)
 tokenizer = BertTokenizer.from_pretrained("wukevin/tcr-bert")
 

@@ -10,8 +10,8 @@ import pandas as pd
 import numpy as np
 
 
-df = dl.load_airr_dataset("simulated_2k_balanced_noisy_25_dataset")
-df = kf.encode_repertorie_normalized(df, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
+df = dl.load_airr_dataset("simulated_2k_unbalanced_dataset")
+df = kf.encode_repertorie_normalized(df, k=1, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
 
 print (f"Encoded {len(df)} samples with k-mer frequencies.")
 
@@ -19,6 +19,9 @@ train, test = ds.split_data(df)
 
 print(train)
 print(test)
+
+# set random seed for reproducibility
+np.random.seed(1)
 
 
 def class_weighted_baseline(labels, n_samples):
@@ -35,8 +38,9 @@ def class_weighted_baseline(labels, n_samples):
     return probs
 
 
-probs = class_weighted_baseline(test["disease"], len(test["disease"]))
+for i in range(20):
+    np.random.seed(i)
 
-metrics = me.calc_metrics(test["disease"], probs)
-
-print(metrics)
+    probs = class_weighted_baseline(test["disease"], len(test["disease"]))
+    metrics = me.calc_metrics(test["disease"], probs)
+    print(metrics)

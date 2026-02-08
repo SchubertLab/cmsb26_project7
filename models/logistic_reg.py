@@ -13,17 +13,17 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import classification_report
 
+def prep_data(dataset, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease"):
+    df = dl.load_airr_dataset(dataset)
+    df = kf.encode_repertorie_normalized(df, k=k, sequence_column=sequence_column, sample_column=sample_column, label_column=label_column)
 
-df = dl.load_airr_dataset("simulated_2k_balanced_noisy_25_dataset")
-df = kf.encode_repertorie_normalized(df, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease")
+    print (f"Encoded {len(df)} samples with k-mer frequencies.")
 
-print (f"Encoded {len(df)} samples with k-mer frequencies.")
-
-train, test = ds.split_data(df)
-
-print(train)
-print(test)
+    train, test = ds.split_data(df)
+    return train, test
 
 class LogRegPredictor:
     def __init__(self, sample_column='sample', label_column='disease', random_state=16):
@@ -39,24 +39,20 @@ class LogRegPredictor:
         self.metrics = None #me.calc_metrics()
 
         #model params
-        self.penalty = 'l1'
-        self.solver = 'liblinear'
-        self.max_iter = 1000
+        self.penalty = 'elasticnet'
+        self.solver = 'saga'
+        self.max_iter = 5000
         self.C = 1
 
         #tuning params
-        self.opt_metric = 'balanced_accuracy'
-        self.c_values = np.logspace(-4,4,20)
-        self.tuning_parameters = {'model__C' : self.c_values} #if we want to check hyperparams other than C
-
-    def set_C(self, C_value):
-        self.C = C_value
-
-    def set_c_values(self, c_values):
-        self.c_values = c_values
-
-    def set_tuning_parameters(self, tuning_params:dict):
-        self.tuning_parameters = tuning_params
+        self.opt_metric = 'average_precision'
+        self.c_values = np.logspace(-3.5,1,10)
+        self.l1_ratio = [0.0, 0.25, 0.5, 0.75, 1]
+        self.tuning_parameters = {
+            'model__C' : self.c_values,
+            'model__l1_ratio': self.l1_ratio}
+        #randomized search
+        self.n_iter = 25
 
 
     #prepare feature & label dataframes
@@ -67,7 +63,6 @@ class LogRegPredictor:
         self.X_test = test_df.drop(columns=[self.sample_column, self.label_column])
         self.y_test = test_df[self.label_column]
 
-
     def make_pipeline(self):
         return Pipeline([
             ('scaler', StandardScaler()),
@@ -76,23 +71,26 @@ class LogRegPredictor:
                 solver=self.solver,
                 C=self.C,
                 random_state=self.random_state,
-                max_iter=self.max_iter
+                max_iter=self.max_iter,
+                class_weight='balanced'
             ))
         ])
 
-    
     def _tune_model(self):
         pipe = self.make_pipeline()
     
-        grid_search = GridSearchCV(
+        random_search = RandomizedSearchCV(
             estimator=pipe,
-            param_grid=self.tuning_parameters,
-            scoring= self.opt_metric
+            param_distributions=self.tuning_parameters,
+            scoring= self.opt_metric,
+            n_iter=self.n_iter,
+            n_jobs=-1,
+            random_state=self.random_state
         )
 
-        grid_search.fit(self.X_train, self.y_train)
+        random_search.fit(self.X_train, self.y_train)
 
-        return grid_search.best_estimator_, grid_search.best_params_
+        return random_search.best_estimator_, random_search.best_params_
     
     def train(self, tune=True):
         if tune:
@@ -109,6 +107,7 @@ class LogRegPredictor:
     def predict(self):
         print(f"Testing LogisticRegression on {self.X_test.shape[0]} samples")
         self.y_prob = self.model.predict_proba(self.X_test)[:, 1]
+        self.y_pred = (self.y_prob >= 0.5).astype(int)
         print("Testing complete.")
         return self.y_prob
 
@@ -116,15 +115,16 @@ class LogRegPredictor:
         if self.y_prob is None:
             raise ValueError("No predicted probabilities found. Run predict() first.")
         
-        disease_int = self.y_test.astype(int).tolist()
+        disease_int = self.y_test.astype(int)
         self.metrics = me.calc_metrics(disease_int, self.y_prob)
-
+        print(classification_report(self.y_test, self.y_pred))
         return self.metrics
 
 
-model = LogRegPredictor('sample','disease')
-model.prepare_data(train, test)
-model.train()
-model.predict()
-metrics = model.evaluate()
-print(metrics)
+#train, test = prep_data("simulated_2k_balanced_noisy_25_dataset")
+#model = LogRegPredictor('sample','disease')
+#model.prepare_data(train, test)
+#model.train()
+#model.predict()
+#metrics = model.evaluate()
+#print(metrics)

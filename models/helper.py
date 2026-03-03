@@ -11,11 +11,20 @@ import encoding.kmer_freq as kf
 
 
 # load dataset, do kmer encoding and split data (stratified)
-def preprocess_data(data, k=3, seq_col="cdr3_aa", samp_col="sample", lab_col="disease", test_size=0.2, random_state=42):
-    df = dl.load_airr_dataset(data)
+def preprocess_data(data, dataset_name='airr', k=3, seq_col="cdr3_aa", samp_col="sample", lab_col="disease", test_size=0.2, random_state=42):
+    valid_dataset_names = ['airr', 'kaggle']
+    if dataset_name not in valid_dataset_names:
+        print(f"Choose a valid dataset name. {valid_dataset_names}")
+        return
+    
+    if dataset_name == 'airr':
+        df = dl.load_airr_dataset(data)
+    elif dataset_name == 'kaggle':
+        df = dl.load_kaggle_dataset(data)
+    
     df = kf.encode_repertorie_normalized(df, k=k, sequence_column=seq_col, sample_column=samp_col, label_column=lab_col)
     print (f"Encoded {len(df)} samples with k-mer frequencies.")
-
+    
     df = df.set_index(samp_col)
 
     # Split the data into features (X) and target (y)

@@ -20,24 +20,20 @@ from imblearn.pipeline import Pipeline
 from imblearn.under_sampling import RandomUnderSampler
 
 from sklearn.tree import export_graphviz
-from IPython.display import Image
 import graphviz
-
-import pickle
-
 
 
 
 class RandForestPredictor:
 
-    def __init__(self, data_name, sample_column='sample', label_column='disease', sequence_column = 'cdr3_aa', k = 3, random_state=42, output_folder='output_stats'):
+    def __init__(self, data_name, dataset_name='airr', sample_column='sample', label_column='disease', sequence_column = 'cdr3_aa', k = 3, random_state=42, output_folder='output_stats'):
         #data
         self.data_name = data_name
         self.sample_column = sample_column
         self.label_column = label_column
         self.sequence_column = sequence_column
 
-        self.X_train, self.X_test, self.y_train, self.y_test = preprocess_data(data_name, k=k, seq_col=self.sequence_column, samp_col=self.sample_column, lab_col=self.label_column)
+        self.X_train, self.X_test, self.y_train, self.y_test = preprocess_data(data_name, dataset_name, k=k, seq_col=self.sequence_column, samp_col=self.sample_column, lab_col=self.label_column)
         
         #model
         self.random_state = random_state
@@ -164,76 +160,3 @@ class RandForestPredictor:
         plt.tight_layout()
         plt.savefig(f'{self.output_folder}/{filename}')
         plt.close()
-
-
-
-if __name__ == '__main__':
-    # Execute when the module is not initialized from an import statement.
-    # control: AAA, disease: YYG
-    datasets_3AA = ['simulated_200_balanced_dataset', 'simulated_200_unbalanced_dataset', 'simulated_500_balanced_dataset', 'simulated_500_unbalanced_dataset', 'simulated_1k_balanced_dataset', 'simulated_1k_unbalanced_dataset', 'simulated_2k_balanced_dataset', 'simulated_2k_unbalanced_dataset', 'simulated_2k_balanced_noisy_05_dataset', 'simulated_2k_balanced_noisy_25_dataset']
-    # control: HNDYSEIRCVLQN, disease: GPKALMVFWQRST
-    datasets_13AA = [str.replace(data,'dataset', '13AA_dataset') for data in datasets_3AA]
-    
-    # params for HP tuning
-    params = {
-        'model__max_features': ['sqrt'], # number of features to consider when looking for the best split 
-        # higher: few relevant variables, high dimensional data
-        # lower: many relevant variables, more diverse trees, on avg worse performance, reduces runtime
-        'model__max_samples': [None, 0.8], # If bootstrap is True, the number of samples to draw from X to train each base estimator.
-        # higher:
-        # lower: more diverse trees, single trees worse performance, for most datasets better performance, reduces runtime
-        'model__bootstrap': [True], # True: replacement, False: without replacement
-        'model__min_samples_leaf': [1, 5, 10], # minimum number of samples required to be at a leaf node
-        # higher: more noise variables, reduces runtime, large datasets
-        # lower: trees with larger depth
-        'model__n_estimators': [100, 200, 500, 1000], # number of trees in the forest
-        # higher: better, low sample size & high node size & small mtry, increases runtime
-        # lower: 
-        'model__criterion': ['gini'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
-        'model__class_weight': ["balanced"] #, "balanced_subsample"]
-    }
-
-    rf_models = {}
-    for data in datasets_13AA:
-        print(data)
-
-        # ------------------ 2. Initialize predictor ------------------
-        rf_predictor = RandForestPredictor(data_name=data, output_folder='output_stats/13AA')
-
-        # ------------------ 3. Run nested CV for evaluation ------------------
-        
-        nested_scores = rf_predictor.nested_cv(
-            params=params,
-            n_iter=12,
-            n_splits=5,
-            shuffle=True
-        )
-
-        # Nested CV prints mean ± std of average precision and recall
-
-        # ------------------ 4. Train final model on full dataset ------------------
-        rf_predictor.fit_final_model(n_iter=20)
-
-        rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
-        rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
-        rf_predictor.feature_importance(filename=f"feature_importance_{data}.png")
-
-        rf_models[data] = rf_predictor
-
-
-
-    # Save to file
-    with open('output_stats/13AA/random_forest_variables.pkl', 'wb') as f:
-        pickle.dump(rf_models, f)
-
-    metric_heatmap(rf_models, filename='output_stats/13AA/metrics_heatmap.png')
-
-    """
-    # Load later
-    with open('random_forest_variables.pkl', 'rb') as f:
-        data = pickle.load(f)
-
-    print(data.keys())
-    print(data['simulated_200_balanced_dataset'].label_column)
-
-    """

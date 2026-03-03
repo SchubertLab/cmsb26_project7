@@ -22,6 +22,7 @@ from imblearn.under_sampling import RandomUnderSampler
 from sklearn.tree import export_graphviz
 import graphviz
 
+from TimeWrapper import TimeWrapper
 
 
 class RandForestPredictor:
@@ -57,6 +58,7 @@ class RandForestPredictor:
             ("model", self.model)
         ])
 
+    @TimeWrapper
     def nested_cv(self, params, n_iter=10, n_splits=5, shuffle=True):
         self.hp_params = params
         pipe = self.make_pipeline()
@@ -92,10 +94,9 @@ class RandForestPredictor:
             print("Nested CV {}: {:.3f} ± {:.3f}".format(metric.removeprefix("test_"),
                 scores[metric].mean(), scores[metric].std()))
         
-
         return scores
 
-
+    @TimeWrapper
     def fit_final_model(self, n_iter=10, n_splits=5):
         """
         Trains a final model on the full dataset using RandomizedSearchCV.
@@ -114,7 +115,6 @@ class RandForestPredictor:
         self.model = search.best_estimator_
         self.best_params = search.best_params_
         print("Final model trained with hyperparameters:", self.best_params)
-        print()
 
         self.predict()
 

@@ -13,14 +13,14 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, average_precision_score, recall_score, precision_score, f1_score
 from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, train_test_split, cross_val_predict, cross_validate
-from scipy.stats import randint
-#from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from imblearn.pipeline import Pipeline
-from imblearn.under_sampling import RandomUnderSampler
+from sklearn.pipeline import Pipeline
+#from sklearn.preprocessing import StandardScaler
+#from imblearn.pipeline import Pipeline as IMBPipeline
+#from imblearn.under_sampling import RandomUnderSampler
 
 from sklearn.tree import export_graphviz
 import graphviz
+from collections import Counter
 
 from TimeWrapper import TimeWrapper
 
@@ -38,9 +38,10 @@ class RandForestPredictor:
         
         #model
         self.random_state = random_state
-        self.model = RandomForestClassifier(random_state=self.random_state, n_jobs=-1)
+        self.model = RandomForestClassifier(random_state=self.random_state, n_jobs=1)
         self.hp_params = None
         self.best_params = None
+        self.best_model = None
         self.nested_scores = None
         self.y_pred = None
 
@@ -49,14 +50,19 @@ class RandForestPredictor:
 
         self.output_folder = output_folder
         os.makedirs(self.output_folder, exist_ok=True)
-    
 
+        self.n_jobs = 4
+    
+   
     def make_pipeline(self):
+        """
         return Pipeline([
             ('sampler', RandomUnderSampler()),    # balance the classes
             ("scaler", StandardScaler()),
-            ("model", self.model)
-        ])
+            ("model", self.model)])
+        """ 
+        return Pipeline([('model', self.model)])
+         
 
     @TimeWrapper
     def nested_cv(self, params, n_iter=10, n_splits=5, shuffle=True):
@@ -71,7 +77,7 @@ class RandForestPredictor:
             n_iter=n_iter,
             cv=inner_cv,
             scoring=self.opt_metric,
-            n_jobs=-1,
+            n_jobs=self.n_jobs,
             random_state=self.random_state
         )
 
@@ -85,7 +91,7 @@ class RandForestPredictor:
             cv=outer_cv,
             scoring=["accuracy", "balanced_accuracy", "precision", "recall", "roc_auc", "average_precision"],
             return_estimator=True,
-            n_jobs=-1
+            n_jobs=self.n_jobs
         )
 
         self.nested_scores = scores
@@ -108,11 +114,12 @@ class RandForestPredictor:
             n_iter=n_iter,
             cv=n_splits,
             scoring=self.opt_metric,
-            n_jobs=-1,
+            n_jobs=self.n_jobs,
             random_state=self.random_state
         )
         search.fit(self.X_train, self.y_train)
-        self.model = search.best_estimator_
+
+        self.best_model = search.best_estimator_
         self.best_params = search.best_params_
         print("Final model trained with hyperparameters:", self.best_params)
 
@@ -120,10 +127,25 @@ class RandForestPredictor:
 
 
     def predict(self):
-        self.y_pred = self.model.predict(self.X_test)
+        self.y_pred = self.best_model.predict(self.X_test)
         return self.y_pred
 
-    
+    def get_consensus_params(self):
+        # Collect all best_params dictionaries
+        all_params = [est.best_params_ for est in self.nested_scores["estimator"]]
+
+        # For each hyperparameter, find the most common value
+        consensus_params = {}
+        for key in all_params[0].keys():
+            values = [p[key] for p in all_params]
+            most_common_value = Counter(values).most_common(1)[0][0]
+            consensus_params[key] = most_common_value
+        
+        df = pd.DataFrame(all_params)
+        print(df.to_string())
+        #print("Consensus hyperparameters:", consensus_params)
+
+
     def confusion_matrix(self, filename="confusion_matrix.png"):
         if self.y_pred is None:
             self.predict()
@@ -138,7 +160,7 @@ class RandForestPredictor:
     
 
     def explore_decision_trees(self, n=3, max_depth=2, filename='trees/tree'):
-        rf = self.model.named_steps['model']
+        rf = self.best_model.named_steps['model']
         for i in range(min(n, len(rf.estimators_))):
             
             tree = rf.estimators_[i]
@@ -153,7 +175,7 @@ class RandForestPredictor:
     
 
     def feature_importance(self, n=10, filename="feature_importances.png"):
-        importances = pd.Series(self.model.named_steps['model'].feature_importances_, index=self.X_train.columns)
+        importances = pd.Series(self.best_model.named_steps['model'].feature_importances_, index=self.X_train.columns)
         ax = importances.sort_values(ascending=False).head(n).plot.bar(figsize=(10, 6))
         ax.set_title(f"Top {n} Feature Importances")
 

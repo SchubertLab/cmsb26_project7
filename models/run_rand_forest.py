@@ -10,6 +10,34 @@ from models.random_forest import RandForestPredictor
 from helper import metric_heatmap
 
 import pickle
+from joblib import Parallel, delayed
+
+import time
+from datetime import datetime
+
+
+def run_dataset(data, output_folder, params):
+    print(data)
+
+    # Initialize predictor
+    rf_predictor = RandForestPredictor(data_name=data, output_folder=output_folder) 
+    #rf_predictor = RandForestPredictor(data_name=data, dataset_name='kaggle', sequence_column="junction_aa", sample_column="sample", label_column="label_positive", output_folder='output_stats/kaggle')
+                                    
+    # Run nested CV for evaluation and fit final model
+    rf_predictor.nested_cv(
+        params=params,
+        n_iter=20,
+        n_splits=5,
+        shuffle=True
+    )
+    rf_predictor.get_consensus_params()
+    
+    rf_predictor.fit_final_model(n_iter=20)
+
+    #rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
+    #rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
+    #rf_predictor.feature_importance(filename=f"feature_importance_{data}.png")
+    return data, rf_predictor
 
 
 
@@ -40,8 +68,9 @@ if __name__ == '__main__':
 
     datasets_groups = datasets_df.groupby(['size', 'seed']).apply(lambda g: g.index.tolist(), include_groups=False).to_dict() # 15 groups with 18 datasets each
 
-    datasets_groups = {(50, 3): ['simulated_seed3_freq010_size50_noise5_dataset'],
-                       (50, 5): ['simulated_seed5_freq010_size50_noise5_dataset']}
+
+    #datasets_groups = {(50, 3): ['simulated_seed3_freq010_size50_noise5_dataset', 'simulated_seed3_freq010_size50_noise25_dataset'],
+    #                   (50, 5): ['simulated_seed5_freq010_size50_noise5_dataset', 'simulated_seed5_freq010_size50_noise25_dataset',]}
     
     # kaggle datasets
     #datasets_kaggle = ['dataset_1', 'dataset_2', 'dataset_3', 'dataset_4', 'dataset_5', 'dataset_6', 'dataset_7_1', 'dataset_7_2', 'dataset_8_1', 'dataset_8_2', 'dataset_8_3', 'dataset_7', 'dataset_8']
@@ -64,47 +93,38 @@ if __name__ == '__main__':
         # higher: better, low sample size & high node size & small mtry, increases runtime
         # lower: 
         'model__criterion': ['gini'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
-        'model__class_weight': ["balanced"] #, "balanced_subsample"]
+        'model__class_weight': ["balanced", "balanced_subsample"]
     }
 
 
-    output_folder = "output_stats/sim_270"
+    output_folder = "output_stats/sim_270_2"
 
+    DATASET_PARALLEL = int(max(1, os.cpu_count() // 4)) # max(1, int(3/4 * os.cpu_count()))
+    
+    for group in list(datasets_groups.keys())[:]:
+        start = time.time()
 
-    rf_models = {}
-    for group in datasets_groups.keys():
+        print()
         print(f'size: {group[0]}, seed: {group[1]}')
+        print("Start:", datetime.fromtimestamp(start).strftime("%H:%M:%S"))
 
-        for data in datasets_groups[group]:
-            print(data)
+        rf_models = {}
 
-            # Initialize predictor
-            rf_predictor = RandForestPredictor(data_name=data, output_folder=output_folder) 
-            #rf_predictor = RandForestPredictor(data_name=data, dataset_name='kaggle', sequence_column="junction_aa", sample_column="sample", label_column="label_positive", output_folder='output_stats/kaggle')
-                                            
-            # Run nested CV for evaluation and fit final model
-            nested_scores = rf_predictor.nested_cv(
-                params=params,
-                n_iter=12,
-                n_splits=5,
-                shuffle=True
-            )
-            rf_predictor.fit_final_model(n_iter=20)
+        results = Parallel(n_jobs=DATASET_PARALLEL)(
+            delayed(run_dataset)(data, output_folder, params)
+            for data in datasets_groups[group]
+        )
+        rf_models = dict(results)
 
-            rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
-            #rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
-            rf_predictor.feature_importance(filename=f"feature_importance_{data}.png")
+        # Save to file
+        with open(f'{output_folder}/rf_variables_size{group[0]}_seed{group[1]}.pkl', 'wb') as f:
+            pickle.dump(rf_models, f)
 
-            rf_models[data] = rf_predictor
+        metric_heatmap(rf_models, filename=f'{output_folder}/metrics_heatmap_size{group[0]}_seed{group[1]}.png')
 
-            print()
-
-            # Save to file
-            with open(f'{output_folder}/rf_variables_size{group[0]}_seed{group[1]}.pkl', 'wb') as f:
-                pickle.dump(rf_models, f)
-
-            metric_heatmap(rf_models, filename=f'{output_folder}/metrics_heatmap_size{group[0]}_seed{group[1]}.png')
-        
+        end = time.time()
+        print("End:", datetime.fromtimestamp(end).strftime("%H:%M:%S"))
+        print("Duration:", end - start, "seconds")
         print()
 
 

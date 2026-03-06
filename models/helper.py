@@ -22,17 +22,33 @@ def preprocess_data(data, dataset_name='airr', k=3, seq_col="cdr3_aa", samp_col=
     elif dataset_name == 'kaggle':
         df = dl.load_kaggle_dataset(data)
     
-    df = kf.encode_repertorie_normalized(df, k=k, sequence_column=seq_col, sample_column=samp_col, label_column=lab_col)
-    print (f"Encoded {len(df)} samples with k-mer frequencies.")
-    
-    df = df.set_index(samp_col)
+    #df = df[[seq_col, samp_col, lab_col]]
+    sample_labels = df[[samp_col, lab_col]].drop_duplicates()
 
-    # Split the data into features (X) and target (y)
-    X = df.drop(columns=lab_col, axis=1)
-    y = df[lab_col]
+    train_samples, test_samples = train_test_split(sample_labels, test_size=test_size, random_state=random_state, stratify=sample_labels[lab_col])
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
+    train_df = df[df[samp_col].isin(train_samples[samp_col])]
+    test_df  = df[df[samp_col].isin(test_samples[samp_col])]
+
+    kmers = kf.get_kmers(train_df, k=k, sequence_column=seq_col)
+
+    X_train, y_train = encode(train_df, kmers, k=k, seq_col=seq_col, samp_col=samp_col, lab_col=lab_col)
+    X_test, y_test = encode(test_df, kmers, k=k, seq_col=seq_col, samp_col=samp_col, lab_col=lab_col)
+
     return X_train, X_test, y_train, y_test
+
+
+def encode(df, kmers, k=3, seq_col="cdr3_aa", samp_col="sample", lab_col="disease"):
+    df_enc = kf.encode_repertorie_normalized(df, kmers, k=k, sequence_column=seq_col, sample_column=samp_col, label_column=lab_col)
+    print (f"Encoded {len(df_enc)} samples with k-mer frequencies.")
+    
+    df_enc = df_enc.set_index(samp_col)
+    # Split the data into features (X) and target (y)
+    X = df_enc.drop(columns=lab_col, axis=1)
+    y = df_enc[lab_col]
+    return X, y
+
+
 
 
 # calculate metrics for a dict of ml models and save as heatmap (png)

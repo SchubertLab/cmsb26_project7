@@ -38,12 +38,17 @@ class RandForestPredictor:
         
         #model
         self.random_state = random_state
-        self.model = RandomForestClassifier(random_state=self.random_state, n_jobs=1)
+        self.model = RandomForestClassifier(bootstrap=True,
+                                            criterion="gini",
+                                            max_features="sqrt", 
+                                            class_weight='balanced',
+                                            random_state=self.random_state, 
+                                            n_jobs=1)
         self.hp_params = None
         self.best_params = None
         self.best_model = None
         self.nested_scores = None
-        self.y_pred = None
+        self.y_prob = None
 
         #tuning params
         self.opt_metric = 'average_precision'
@@ -51,7 +56,7 @@ class RandForestPredictor:
         self.output_folder = output_folder
         os.makedirs(self.output_folder, exist_ok=True)
 
-        self.n_jobs = 4
+        self.n_jobs = 5
     
    
     def make_pipeline(self):
@@ -127,8 +132,8 @@ class RandForestPredictor:
 
 
     def predict(self):
-        self.y_pred = self.best_model.predict(self.X_test)
-        return self.y_pred
+        self.y_prob = self.best_model.predict_proba(self.X_test)[:, 1]
+    
 
     def get_consensus_params(self):
         # Collect all best_params dictionaries

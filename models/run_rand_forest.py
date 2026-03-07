@@ -26,13 +26,13 @@ def run_dataset(data, output_folder, params):
     # Run nested CV for evaluation and fit final model
     rf_predictor.nested_cv(
         params=params,
-        n_iter=20,
+        n_iter=30,
         n_splits=5,
         shuffle=True
     )
     rf_predictor.get_consensus_params()
     
-    rf_predictor.fit_final_model(n_iter=20)
+    rf_predictor.fit_final_model(n_iter=30)
 
     #rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
     #rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
@@ -79,27 +79,29 @@ if __name__ == '__main__':
     
     # params for HP tuning
     params = {
-        'model__max_features': ['sqrt'], # number of features to consider when looking for the best split 
+        #'model__max_features': ['sqrt'], # number of features to consider when looking for the best split 
         # higher: few relevant variables, high dimensional data
         # lower: many relevant variables, more diverse trees, on avg worse performance, reduces runtime
         'model__max_samples': [None, 0.8], # If bootstrap is True, the number of samples to draw from X to train each base estimator.
         # higher:
         # lower: more diverse trees, single trees worse performance, for most datasets better performance, reduces runtime
-        'model__bootstrap': [True], # True: replacement, False: without replacement
+        #'model__bootstrap': [True], # True: replacement, False: without replacement
         'model__min_samples_leaf': [1, 5, 10], # minimum number of samples required to be at a leaf node
         # higher: more noise variables, reduces runtime, large datasets
         # lower: trees with larger depth
-        'model__n_estimators': [100, 200, 500, 1000], # number of trees in the forest
+        'model__n_estimators': [100, 200, 500], # 1000 # number of trees in the forest
         # higher: better, low sample size & high node size & small mtry, increases runtime
         # lower: 
-        'model__criterion': ['gini'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
-        'model__class_weight': ["balanced", "balanced_subsample"]
+        #'model__criterion': ['gini'], # function to measure the quality of the split: {“gini”, “entropy”, “log_loss”}
+        #'model__class_weight': ["balanced", "balanced_subsample"],
+        'model__min_samples_split': [2, 5, 10],
+        'model__max_depth': [None, 10, 20]
     }
 
 
-    output_folder = "output_stats/sim_270_2"
+    output_folder = "/vol/data/immuneML/output_rf/sim_270_noleak_newparams"
 
-    DATASET_PARALLEL = int(max(1, os.cpu_count() // 4)) # max(1, int(3/4 * os.cpu_count()))
+    DATASET_PARALLEL = int(max(1, os.cpu_count() // 5)) # max(1, int(3/4 * os.cpu_count()))
     
     for group in list(datasets_groups.keys())[:]:
         start = time.time()

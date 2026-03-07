@@ -60,7 +60,7 @@ def metric_heatmap(ml_dict, filename="metrics_heatmap.png"):
     for data in ml_dict.keys():
 
         rf_model = ml_dict[data]
-        metrics = me.calc_metrics(rf_model.y_test, rf_model.y_pred)
+        metrics = me.calc_metrics(rf_model.y_test, rf_model.y_prob)
         metrics_best_models[data] = metrics
 
     df_metrics = pd.DataFrame.from_dict(metrics_best_models, orient='index')

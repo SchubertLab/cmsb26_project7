@@ -148,7 +148,8 @@ class RandForestPredictor:
         
         df = pd.DataFrame(all_params)
         print(df.to_string())
-        #print("Consensus hyperparameters:", consensus_params)
+        print("Consensus hyperparameters:", consensus_params)
+        return df
 
 
     def confusion_matrix(self, filename="confusion_matrix.png"):

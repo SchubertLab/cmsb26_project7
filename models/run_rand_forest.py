@@ -20,8 +20,8 @@ def run_dataset(data, output_folder, params):
     print(data)
 
     # Initialize predictor
-    rf_predictor = RandForestPredictor(data_name=data, output_folder=output_folder) 
-    #rf_predictor = RandForestPredictor(data_name=data, dataset_name='kaggle', sequence_column="junction_aa", sample_column="sample", label_column="label_positive", output_folder='output_stats/kaggle')
+    #rf_predictor = RandForestPredictor(data_name=data, output_folder=output_folder) 
+    rf_predictor = RandForestPredictor(data_name=data, dataset_name='kaggle', sequence_column="junction_aa", sample_column="sample", label_column="label_positive", output_folder=output_folder)
                                     
     # Run nested CV for evaluation and fit final model
     rf_predictor.nested_cv(
@@ -34,9 +34,6 @@ def run_dataset(data, output_folder, params):
     
     rf_predictor.fit_final_model(n_iter=30)
 
-    #rf_predictor.confusion_matrix(filename=f"confusion_matrix_{data}.png")
-    #rf_predictor.explore_decision_trees(filename=f"trees_{data}/tree")
-    #rf_predictor.feature_importance(filename=f"feature_importance_{data}.png")
     return data, rf_predictor
 
 
@@ -73,7 +70,7 @@ if __name__ == '__main__':
     #                   (50, 5): ['simulated_seed5_freq010_size50_noise5_dataset', 'simulated_seed5_freq010_size50_noise25_dataset',]}
     
     # kaggle datasets
-    #datasets_kaggle = ['dataset_1', 'dataset_2', 'dataset_3', 'dataset_4', 'dataset_5', 'dataset_6', 'dataset_7_1', 'dataset_7_2', 'dataset_8_1', 'dataset_8_2', 'dataset_8_3', 'dataset_7', 'dataset_8']
+    datasets_groups = {'kaggle': ['dataset_1', 'dataset_2', 'dataset_3', 'dataset_4', 'dataset_5', 'dataset_6', 'dataset_7_1', 'dataset_7_2', 'dataset_8_1', 'dataset_8_2', 'dataset_8_3', 'dataset_7', 'dataset_8']}
     
     
     
@@ -99,15 +96,16 @@ if __name__ == '__main__':
     }
 
 
-    output_folder = "/vol/data/immuneML/output_rf/sim_270_noleak_newparams"
+    output_folder = "/vol/data/immuneML/output_rf/kaggle_noleak_newparams"
 
-    DATASET_PARALLEL = int(max(1, os.cpu_count() // 5)) # max(1, int(3/4 * os.cpu_count()))
+    DATASET_PARALLEL = int(max(1, os.cpu_count() // 5 -2)) # max(1, int(3/4 * os.cpu_count()))
     
     for group in list(datasets_groups.keys())[:]:
         start = time.time()
 
         print()
-        print(f'size: {group[0]}, seed: {group[1]}')
+        #print(f'size: {group[0]}, seed: {group[1]}')
+        print(f'kaggle datasets')
         print("Start:", datetime.fromtimestamp(start).strftime("%H:%M:%S"))
 
         rf_models = {}
@@ -119,10 +117,13 @@ if __name__ == '__main__':
         rf_models = dict(results)
 
         # Save to file
-        with open(f'{output_folder}/rf_variables_size{group[0]}_seed{group[1]}.pkl', 'wb') as f:
+        #with open(f'{output_folder}/rf_variables_size{group[0]}_seed{group[1]}.pkl', 'wb') as f:
+        with open(f'{output_folder}/rf_variables_kaggle.pkl', 'wb') as f:
             pickle.dump(rf_models, f)
 
-        metric_heatmap(rf_models, filename=f'{output_folder}/metrics_heatmap_size{group[0]}_seed{group[1]}.png')
+        #metric_heatmap(rf_models, filename=f'{output_folder}/metrics_heatmap_size{group[0]}_seed{group[1]}.png')
+        metric_heatmap(rf_models, filename=f'{output_folder}/metrics_heatmap_kaggle.png')
+
 
         end = time.time()
         print("End:", datetime.fromtimestamp(end).strftime("%H:%M:%S"))

@@ -2,34 +2,28 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import lib.dataloader as dl
-import lib.datasplit as ds
 import lib.metrics as me
-import encoding.kmer_freq as kf
-import pandas as pd
+from models.helper import preprocess_data
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import classification_report
 
-def prep_data(dataset, k=3, sequence_column="cdr3_aa", sample_column="sample", label_column="disease"):
-    df = dl.load_airr_dataset(dataset)
-    df = kf.encode_repertorie_normalized(df, k=k, sequence_column=sequence_column, sample_column=sample_column, label_column=label_column)
-
-    print (f"Encoded {len(df)} samples with k-mer frequencies.")
-
-    train, test = ds.split_data(df)
-    return train, test
+from sklearn.model_selection import StratifiedKFold, cross_validate
 
 class LogRegPredictor:
-    def __init__(self, sample_column='sample', label_column='disease', random_state=16):
+    def __init__(self, data, dataset_name='airr', seq_col='cdr3_aa', sample_column='sample', label_column='disease', random_state=16, split_seed=42):
         #data
-        self.sample_column = sample_column
-        self.label_column = label_column
+        self.X_train, self.X_test, self.y_train, self.y_test = preprocess_data(
+            data=data,
+            dataset_name=dataset_name,
+            seq_col=seq_col,
+            samp_col=sample_column, 
+            lab_col=label_column,
+            random_state=split_seed)
         
         #model
         self.model = None
@@ -42,26 +36,18 @@ class LogRegPredictor:
         self.penalty = 'elasticnet'
         self.solver = 'saga'
         self.max_iter = 5000
+        self.l1_ratio = 0.5
         self.C = 1
 
-        #tuning params
+              #tuning params
         self.opt_metric = 'average_precision'
-        self.c_values = np.logspace(-3.5,1,10)
-        self.l1_ratio = [0.0, 0.25, 0.5, 0.75, 1]
+        self.c_values = np.logspace(-4,2,15)
+        self.l1_ratio_grid = [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
         self.tuning_parameters = {
             'model__C' : self.c_values,
-            'model__l1_ratio': self.l1_ratio}
+            'model__l1_ratio': self.l1_ratio_grid}
         #randomized search
-        self.n_iter = 25
-
-
-    #prepare feature & label dataframes
-    def prepare_data(self, train_df, test_df):
-        self.X_train = train_df.drop(columns=[self.sample_column, self.label_column])
-        self.y_train = train_df[self.label_column]
-
-        self.X_test = test_df.drop(columns=[self.sample_column, self.label_column])
-        self.y_test = test_df[self.label_column]
+        self.n_iter = 40
 
     def make_pipeline(self):
         return Pipeline([
@@ -70,6 +56,7 @@ class LogRegPredictor:
                 penalty=self.penalty,
                 solver=self.solver,
                 C=self.C,
+                l1_ratio=self.l1_ratio,
                 random_state=self.random_state,
                 max_iter=self.max_iter,
                 class_weight='balanced'
@@ -85,13 +72,51 @@ class LogRegPredictor:
             scoring= self.opt_metric,
             n_iter=self.n_iter,
             n_jobs=-1,
+            cv=5,
             random_state=self.random_state
         )
 
         random_search.fit(self.X_train, self.y_train)
 
         return random_search.best_estimator_, random_search.best_params_
-    
+
+    def nested_cv(self, n_splits=5):
+        pipe = self.make_pipeline()
+
+        inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
+        search = RandomizedSearchCV(
+            estimator=pipe,
+            param_distributions=self.tuning_parameters,
+            n_iter=self.n_iter,
+            cv=inner_cv,
+            scoring=self.opt_metric,
+            n_jobs=-1,
+            random_state=self.random_state
+        )
+
+        outer_cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
+
+        scores = cross_validate(
+            search,
+            self.X_train,
+            self.y_train,
+            cv=outer_cv,
+            scoring=['accuracy', 'balanced_accuracy', 'precision', 'recall', 'roc_auc', 'average_precision'],
+            return_estimator=True,
+            n_jobs=-1
+        )
+
+        self.nested_scores = scores
+
+        for metric in ['test_accuracy', 'test_balanced_accuracy', 'test_precision', 'test_recall', 'test_roc_auc', 'test_average_precision']:
+            print("Nested CV {}: {:.3f} ± {:.3f}".format(
+                metric.removeprefix("test_"),
+                scores[metric].mean(),
+                scores[metric].std()
+            ))
+
+        return scores
+
     def train(self, tune=True):
         if tune:
             print(f"Tuning and Training LogisticRegression on {self.X_train.shape[0]} samples and {self.X_train.shape[1]} kmer features")
@@ -120,11 +145,9 @@ class LogRegPredictor:
         print(classification_report(self.y_test, self.y_pred))
         return self.metrics
 
-
-#train, test = prep_data("simulated_2k_balanced_noisy_25_dataset")
-#model = LogRegPredictor('sample','disease')
-#model.prepare_data(train, test)
-#model.train()
-#model.predict()
-#metrics = model.evaluate()
-#print(metrics)
+if __name__ == "__main__":
+    model = LogRegPredictor("simulated_200_balanced_dataset",sample_column='sample',label_column='disease')
+    model.train()
+    model.predict()
+    metrics = model.evaluate()
+    print(metrics)

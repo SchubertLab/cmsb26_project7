@@ -10,7 +10,7 @@ import lib.metrics as me
 import encoding.kmer_freq as kf
 
 
-# load dataset, do kmer encoding and split data (stratified)
+# load dataset, split data (stratified) and do kmer encoding 
 def preprocess_data(data, dataset_name='airr', k=3, seq_col="cdr3_aa", samp_col="sample", lab_col="disease", test_size=0.2, random_state=42):
     valid_dataset_names = ['airr', 'kaggle']
     if dataset_name not in valid_dataset_names:

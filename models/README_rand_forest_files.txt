@@ -4,7 +4,7 @@ TimeWrapper.py
 
 helper.py
 - contains three functions:
-    - preprocess_data: load dataset, do kmer encoding and split data into training and test set
+    - preprocess_data: load dataset, split data into training and test set, do kmer encoding 
     - encode: encode the dataset and split it into features and targets
     - metric_heatmap: calculate metrics for a dict of ML models and save as heatmap
 

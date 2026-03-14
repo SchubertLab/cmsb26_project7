@@ -1,20 +1,19 @@
-# from AdVist lecture Pythonics 2
-# modified with chattie
+# from AdVist lecture Pythonics 2, modified a bit
 
 import time
 import functools
 
-
+# helper class printing the runtime of a function
 class TimeWrapper:
     def __init__(self, func):
         self.func = func
         functools.update_wrapper(self, func)
     
     def __get__(self, instance, owner):
-        # Bind the function to the instance
         return lambda *args, **kwargs: self(instance, *args, **kwargs)
     
     def __call__(self, *args, **kwds):
+        # run the function and determine its runtime
         start = time.time()
         result = self.func(*args, **kwds)
         end = time.time()

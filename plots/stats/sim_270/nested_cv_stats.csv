@@ -1,4 +1,4 @@
-dataset,fold,fit_time,score_time,accuracy,balanced_accuracy,precision,recall,roc_auc,average_precision,n_estimators,min_samples_split,min_samples_leaf,max_samples,max_depth,seed,freq,size,noise
+dataset_name,fold,fit_time,score_time,accuracy,balanced_accuracy,precision,recall,roc_auc,average_precision,n_estimators,min_samples_split,min_samples_leaf,max_samples,max_depth,seed,freq,size,noise
 simulated_seed3_freq010_size1000_noise5_dataset,0,378.00959968566895,0.3754842281341553,1.0,1.0,1.0,1.0,1.0,0.9999999999999998,200,2,1,,20.0,3,10,1000,5
 simulated_seed3_freq010_size1000_noise5_dataset,1,378.4700725078583,0.726161003112793,1.0,1.0,1.0,1.0,1.0,1.0,500,2,1,0.8,,3,10,1000,5
 simulated_seed3_freq010_size1000_noise5_dataset,2,378.5498251914978,0.45818543434143066,1.0,1.0,1.0,1.0,1.0,1.0,500,5,10,0.8,20.0,3,10,1000,5

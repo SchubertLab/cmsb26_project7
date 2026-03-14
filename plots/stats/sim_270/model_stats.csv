@@ -1,4 +1,4 @@
-dataset,ACC,Balanced_ACC,Precision,Recall,AUROC,AUPRC,MCC,n_estimators,min_samples_split,min_samples_leaf,max_samples,max_depth,seed,freq,size,noise
+dataset_name,ACC,Balanced_ACC,Precision,Recall,AUROC,AUPRC,MCC,n_estimators,min_samples_split,min_samples_leaf,max_samples,max_depth,seed,freq,size,noise
 simulated_seed3_freq010_size1000_noise5_dataset,1.0,1.0,1.0,1.0,1.0,1.0,1.0,500,5,10,0.8,20.0,3,10,1000,5
 simulated_seed3_freq010_size1000_noise25_dataset,0.985,0.985,0.98989898989899,0.98,0.9998,0.9998009900990099,0.9700485036378032,500,2,1,,10.0,3,10,1000,25
 simulated_seed3_freq010_size1000_noise50_dataset,0.955,0.955,0.9595959595959596,0.95,0.9822,0.9799566301048208,0.9100455034127843,500,10,1,0.8,20.0,3,10,1000,50

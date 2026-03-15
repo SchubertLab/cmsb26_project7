@@ -131,35 +131,9 @@ class SVMPredictor:
     def predict(self):
         self.y_prob = self.best_model.predict_proba(self.X_test)[:, 1]
         self.y_pred = self.best_model.predict(self.X_test)
-    
-
-
-    def confusion_matrix(self, filename="confusion_matrix.png"):
-        if self.y_pred is None:
-            self.predict()
-        cm = confusion_matrix(self.y_test, self.y_pred)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-        disp.plot()
         
-        plt.title("Confusion Matrix")
-        plt.tight_layout()
-        plt.savefig(f'{self.output_folder}/{filename}')
-        plt.close()
-    
-
-    def classification_report(self, filename="classification_report.txt"):
-        if self.y_pred is None:
-            self.predict()
-        report = classification_report(self.y_test, self.y_pred)
-        
-        with open(f'{self.output_folder}/{filename}', 'w') as f:
-            f.write(report)
-        print(report)
-    
 
     def feature_importance(self, n=10, filename="feature_importances.png"):
-        # For SVM, we can use the coefficients from the decision function
-        # This works well for linear kernels; for RBF kernels, this is less interpretable
         svm_model = self.best_model.named_steps['model']
         
         # Get coefficients (absolute values for importance)

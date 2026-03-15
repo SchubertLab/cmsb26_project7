@@ -119,7 +119,6 @@ if __name__ == '__main__':
         with open(f'{output_folder}/svm_variables_kaggle_46.pkl', 'wb') as f:
             pickle.dump(svm_models, f)
 
-        #metric_heatmap(svm_models, filename=f'{output_folder}/metrics_heatmap_size{group[0]}_seed{group[1]}.png')
         metric_heatmap(svm_models, filename=f'{output_folder}/metrics_heatmap_kaggle_46.png')
 
 

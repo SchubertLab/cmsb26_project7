@@ -103,7 +103,7 @@ if __name__ == '__main__':
     parallel_datasets = int(max(1, os.cpu_count() // n_jobs )) 
 
     # iterate over groups, execute Random Forest workflow for each dataset in the group and save results
-    for group in list(datasets_groups.keys())[7:12:3]:
+    for group in list(datasets_groups.keys()):
         print()
         start = time.time()
         print(f"size: {group[0]}, seed: {group[1]}" if sim else f"random state: {group}")

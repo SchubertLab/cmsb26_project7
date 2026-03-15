@@ -49,6 +49,8 @@ def tokenize_batchwise(df, seq_col="junction_aa", max_length=32, batch_size=1024
 
     sequences = df[seq_col].tolist()
     
+    print(sequences[:20])
+    
     # amino acids must be space delimited for TCR-BERT tokenizer
     sequences = [" ".join(list(seq)) for seq in sequences]
 

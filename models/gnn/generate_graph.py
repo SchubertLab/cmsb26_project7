@@ -48,7 +48,7 @@ def naive_sample_node_merge(df_sample, embeddings_sample, k_nodes=500):
         "sample": "first",  # optional, pick representative
         "filename": "first",
         "label_positive": "first",
-        "study_group_description": "first",
+        # "study_group_description": "first",
         "sex": "first",
         "age": "first"
     }).reset_index()

@@ -1,0 +1,28 @@
+definitions:
+  datasets:
+    my_dataset:
+      format: AIRR
+      params:
+        path: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_balanced/my_sim_inst/exported_dataset/airr/repertoires/
+        metadata_file: /vol/data/immuneML/simulation_data/data/repertoire_LigoSim_200_balanced/my_sim_inst/exported_dataset/airr/simulated_dataset.csv
+
+  encodings:
+    my_kmer_encoding:
+      KmerFrequency:
+        k: 5
+
+  ml_methods:
+    my_random_forest: RandomForestClassifier
+
+instructions:
+  my_instructions:
+    type: TrainMLModel
+    dataset: my_dataset
+    labels: [disease]   # <-- replace with your label column
+    settings:
+      - encoding: my_kmer_encoding
+        ml_method: my_random_forest
+    optimization_metric: balanced_accuracy
+    metrics: [auc]
+    refit_optimal_model: False
+    number_of_processes: 4

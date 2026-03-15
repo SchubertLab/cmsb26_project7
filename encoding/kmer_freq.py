@@ -39,19 +39,25 @@ def encode_repertorie_raw(
     
     return encoded_df
 
-def encode_repertorie_normalized(
-        df, 
-        k=3, 
-        sequence_column="cdr3_aa",
-        sample_column="sample", 
-        label_column="disease"
-    ):
+def get_kmers(df, k=3, sequence_column="cdr3_aa"):
     # Step 1: find all unique kmers
     kmer_set = set()
     for seq in tqdm(df[sequence_column], desc="Finding unique k-mers"):
         seq = seq.upper()
         kmer_set.update(seq[i:i+k] for i in range(len(seq) - k + 1))
-    kmers = sorted(kmer_set)
+    
+    return sorted(kmer_set)
+
+def encode_repertorie_normalized(
+        df, 
+        kmers,
+        k=3, 
+        sequence_column="cdr3_aa",
+        sample_column="sample", 
+        label_column="disease"
+    ):
+  
+    k = len(kmers[0])
 
     # Step 2: aggregate + normalize per sample
     aggregated_data = []

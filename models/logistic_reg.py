@@ -12,8 +12,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import classification_report
 
-from sklearn.model_selection import StratifiedKFold, cross_validate
-
 class LogRegPredictor:
     def __init__(self, data, dataset_name='airr', seq_col='cdr3_aa', sample_column='sample', label_column='disease', random_state=16, split_seed=42):
         #data
@@ -79,43 +77,6 @@ class LogRegPredictor:
         random_search.fit(self.X_train, self.y_train)
 
         return random_search.best_estimator_, random_search.best_params_
-
-    def nested_cv(self, n_splits=5):
-        pipe = self.make_pipeline()
-
-        inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
-        search = RandomizedSearchCV(
-            estimator=pipe,
-            param_distributions=self.tuning_parameters,
-            n_iter=self.n_iter,
-            cv=inner_cv,
-            scoring=self.opt_metric,
-            n_jobs=-1,
-            random_state=self.random_state
-        )
-
-        outer_cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
-
-        scores = cross_validate(
-            search,
-            self.X_train,
-            self.y_train,
-            cv=outer_cv,
-            scoring=['accuracy', 'balanced_accuracy', 'precision', 'recall', 'roc_auc', 'average_precision'],
-            return_estimator=True,
-            n_jobs=-1
-        )
-
-        self.nested_scores = scores
-
-        for metric in ['test_accuracy', 'test_balanced_accuracy', 'test_precision', 'test_recall', 'test_roc_auc', 'test_average_precision']:
-            print("Nested CV {}: {:.3f} ± {:.3f}".format(
-                metric.removeprefix("test_"),
-                scores[metric].mean(),
-                scores[metric].std()
-            ))
-
-        return scores
 
     def train(self, tune=True):
         if tune:
